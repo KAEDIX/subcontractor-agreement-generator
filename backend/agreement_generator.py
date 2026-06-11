@@ -170,6 +170,7 @@ def generate_agreement_pdf(
     signatory_name: str,
     signatory_title: str,
     signatory_email: str,
+    appendix_pdf_bytes_list: list[bytes] = None,
     appendix_pdf_bytes: bytes = None,
 ) -> tuple[bytes, str]:
     """
@@ -255,17 +256,22 @@ def generate_agreement_pdf(
     if not soffice_out.exists():
         raise FileNotFoundError(f"Expected PDF not found: {soffice_out}")
 
-    # --- 3. Merge appendix PDF if provided ---------------------------------
-    if appendix_pdf_bytes:
+    # --- 3. Merge appendix PDF(s) if provided, in the order added ----------
+    appendices = list(appendix_pdf_bytes_list or [])
+    if appendix_pdf_bytes:                 # backward-compat single appendix
+        appendices.append(appendix_pdf_bytes)
+
+    if appendices:
         writer = PdfWriter()
 
         # Add all pages from the generated agreement
         for page in PdfReader(soffice_out).pages:
             writer.add_page(page)
 
-        # Add all pages from the uploaded appendix
-        for page in PdfReader(io.BytesIO(appendix_pdf_bytes)).pages:
-            writer.add_page(page)
+        # Add all pages from each uploaded appendix, in upload order
+        for ap_bytes in appendices:
+            for page in PdfReader(io.BytesIO(ap_bytes)).pages:
+                writer.add_page(page)
 
         merged_buf = io.BytesIO()
         writer.write(merged_buf)

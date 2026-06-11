@@ -185,9 +185,10 @@ with st.form("agreement_form"):
 
     # ── Appendix A ────────────────────────────────────────────────────────
     st.markdown("#### Appendix A")
-    appendix_pdf = st.file_uploader(
-        "Upload Appendix PDF (will be appended to the agreement)",
+    appendix_pdfs = st.file_uploader(
+        "Upload Appendix PDF(s) — appended to the agreement in the order added",
         type=["pdf"],
+        accept_multiple_files=True,
     )
 
     submit = st.form_submit_button("Generate Agreement PDF", use_container_width=True)
@@ -199,9 +200,16 @@ if submit:
     if not subcontractor_name and not company_name:
         st.warning("Please enter at least a Subcontractor Name or Company Name.")
     else:
+        if appendix_pdfs:
+            st.caption(
+                "Appendices will be appended in this order: "
+                + ", ".join(f"{i}. {f.name}" for i, f in enumerate(appendix_pdfs, 1))
+            )
         with st.spinner("Generating PDF…"):
             try:
-                appendix_bytes = appendix_pdf.read() if appendix_pdf else None
+                appendix_bytes_list = (
+                    [f.read() for f in appendix_pdfs] if appendix_pdfs else None
+                )
                 pdf_bytes, filename = generate_agreement_pdf(
                     project_id=project_id,
                     project_address=project_address,
@@ -216,7 +224,7 @@ if submit:
                     signatory_name=signatory_name,
                     signatory_title=signatory_title,
                     signatory_email=signatory_email,
-                    appendix_pdf_bytes=appendix_bytes,
+                    appendix_pdf_bytes_list=appendix_bytes_list,
                 )
                 st.success("Agreement generated!")
                 st.download_button(
