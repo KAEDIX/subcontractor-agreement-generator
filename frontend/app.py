@@ -145,11 +145,11 @@ with st.form("agreement_form"):
     st.markdown("#### Project Information")
     col1, col2 = st.columns(2)
     with col1:
-        project_id      = st.text_input("Project ID", value="KHP003")
+        project_id      = st.text_input("Project ID", value="KHP004")
         agreement_date  = st.text_input("Agreement Date", value=datetime.today().strftime("%m/%d/%Y"))
         completion_date = st.text_input("Scheduled Completion Date", placeholder="MM/DD/YYYY")
     with col2:
-        project_address = st.text_input("Project Address", value="8407 E Rancho Vista Dr, Scottsdale, AZ 85251, United States")
+        project_address = st.text_input("Project Address", value="4949 E Shaw Butte Drive, Scottsdale, AZ 85254, United States")
         start_date      = st.text_input("Scheduled Start Date", placeholder="MM/DD/YYYY")
 
     st.divider()
