@@ -135,24 +135,50 @@ if not email.endswith("@kaedix.com"):
 st.divider()
 
 # ─────────────────────────────────────────────
+# PROJECT REGISTRY
+# ─────────────────────────────────────────────
+PROJECTS = {
+    "KHP004": "4949 E Shaw Butte Dr, Scottsdale, AZ 85254",
+    "KHP005": "10818 N 43rd St, Phoenix, AZ 85028",
+    "KHP006": "3008 N 82nd St, Scottsdale, AZ 85251",
+}
+
+# ─────────────────────────────────────────────
 # MAIN FORM
 # ─────────────────────────────────────────────
 st.subheader("Subcontractor Agreement")
 
+# ── Project Information ───────────────────────────────────────────────────
+# Lives outside the form so selecting a Project ID can autofill the address.
+# (Widgets inside st.form don't trigger reruns / on_change callbacks.)
+def _autofill_project_address():
+    st.session_state.project_address = PROJECTS.get(
+        st.session_state.project_id, st.session_state.project_address
+    )
+
+if "project_id" not in st.session_state:
+    st.session_state.project_id = next(iter(PROJECTS))
+if "project_address" not in st.session_state:
+    st.session_state.project_address = PROJECTS[st.session_state.project_id]
+
+st.markdown("#### Project Information")
+col1, col2 = st.columns(2)
+with col1:
+    project_id      = st.selectbox(
+        "Project ID",
+        options=list(PROJECTS.keys()),
+        key="project_id",
+        on_change=_autofill_project_address,
+    )
+    agreement_date  = st.text_input("Agreement Date", value=datetime.today().strftime("%m/%d/%Y"))
+    completion_date = st.text_input("Scheduled Completion Date", placeholder="MM/DD/YYYY")
+with col2:
+    project_address = st.text_input("Project Address", key="project_address")
+    start_date      = st.text_input("Scheduled Start Date", placeholder="MM/DD/YYYY")
+
+st.divider()
+
 with st.form("agreement_form"):
-
-    # ── Project Information ───────────────────────────────────────────────
-    st.markdown("#### Project Information")
-    col1, col2 = st.columns(2)
-    with col1:
-        project_id      = st.text_input("Project ID", value="KHP004")
-        agreement_date  = st.text_input("Agreement Date", value=datetime.today().strftime("%m/%d/%Y"))
-        completion_date = st.text_input("Scheduled Completion Date", placeholder="MM/DD/YYYY")
-    with col2:
-        project_address = st.text_input("Project Address", value="4949 E Shaw Butte Drive, Scottsdale, AZ 85254, United States")
-        start_date      = st.text_input("Scheduled Start Date", placeholder="MM/DD/YYYY")
-
-    st.divider()
 
     # ── Subcontractor Information ─────────────────────────────────────────
     st.markdown("#### Subcontractor Information")
