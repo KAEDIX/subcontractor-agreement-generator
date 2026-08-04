@@ -141,6 +141,7 @@ PROJECTS = {
     "KHP004": "4949 E Shaw Butte Dr, Scottsdale, AZ 85254",
     "KHP005": "10818 N 43rd St, Phoenix, AZ 85028",
     "KHP006": "3832 N 85th Pl, Scottsdale, AZ 85251",
+    "KHP008": "6318 E Paradise Ln, Scottsdale, AZ 85254",
 }
 
 # ─────────────────────────────────────────────
