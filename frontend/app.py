@@ -355,17 +355,19 @@ with st.form("agreement_form"):
         )
 
 # Demote the "Download PDF" form button to a plain corner link, not a button.
+# (More specific + !important so it wins over the primary submit-button styling above.)
 st.markdown(
     """
     <style>
     div[data-testid="stFormSubmitButton"]:has(button[kind="secondary"]) button {
-        border: none;
-        background: none;
-        color: #6b6b6b;
-        font-size: 0.85rem;
-        text-decoration: underline;
-        padding: 0;
-        box-shadow: none;
+        border: none !important;
+        background: none !important;
+        color: #6b6b6b !important;
+        font-size: 0.85rem !important;
+        text-decoration: underline !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+        float: right;
     }
     </style>
     """,
