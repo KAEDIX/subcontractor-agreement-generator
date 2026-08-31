@@ -33,7 +33,7 @@ def _normalize_phone(raw: str) -> str | None:
 
 BASE_DIR = Path(__file__).resolve().parent
 ICON_PATH = BASE_DIR / ".." / "template" / "kaedix_icon.png"
-WORDMARK_PATH = BASE_DIR / ".." / "template" / "kaedix_wordmark.png"
+WORDMARK_PATH = BASE_DIR / ".." / "template" / "kdx_wordmark_white.png"
 
 
 def _img_data_uri(path: Path) -> str:
@@ -74,6 +74,7 @@ st.html(
         --kdx-tiger:#FF671F; --kdx-tiger-700:#C94A0E;
         --kdx-navy:#0A294A; --kdx-charcoal:#2D2D2D; --kdx-graphite:#666666; --kdx-iron:#454545;
         --kdx-ink-50:#FAFAF8; --kdx-ink-100:#F2F1EE; --kdx-ink-200:#E5E3DE; --kdx-ink-300:#C9C6BF; --kdx-ink-400:#9A978F;
+        --kdx-success:#0F5933;
         --font-display:'DM Serif Display',Georgia,serif;
         --font-sans:'DM Sans',-apple-system,sans-serif;
     }
@@ -81,26 +82,30 @@ st.html(
     /* ground + base type */
     .stApp{background:var(--kdx-ink-50);}
     html, body, [class*="css"]{font-family:var(--font-sans);}
-    .block-container{max-width:720px; padding-top:1rem; padding-bottom:3rem;}
+    .block-container{max-width:720px; padding-top:0 !important; padding-bottom:3rem;}
+    header[data-testid="stHeader"]{background:var(--kdx-ink-50); height:0; min-height:0;}
+    div[data-testid="stAppViewContainer"] > .main{padding-top:0;}
+    div[data-testid="stMainBlockContainer"]{padding-top:0 !important;}
 
-    /* app header band */
+    /* app header band — full-bleed navy, flush with the very top of the page */
     .kdx-app-header{
-        background:var(--kdx-navy); margin:-1rem -1rem 1.5rem -1rem; padding:22px 24px 26px;
-        border-radius:0 0 8px 8px; display:flex; align-items:center; gap:14px;
+        background:var(--kdx-navy); margin:0 -1rem 1.75rem -1rem; padding:26px 28px 28px;
+        display:flex; align-items:center; gap:14px;
     }
-    .kdx-app-header img{height:26px; width:auto; display:block;}
+    .kdx-app-header img{height:22px; width:auto; display:block;}
     .kdx-app-eyebrow{
-        font-family:var(--font-sans); font-size:10px; font-weight:700; letter-spacing:.22em;
-        text-transform:uppercase; color:#FFC4A3; margin-bottom:4px;
+        font-family:var(--font-sans); font-size:10px; font-weight:500; letter-spacing:.22em;
+        text-transform:uppercase; color:#FFC4A3; margin-bottom:5px;
     }
-    .kdx-app-title{font-family:var(--font-display); font-weight:400; font-size:22px; color:#FFFFFF; line-height:1.15;}
+    .kdx-app-title{font-family:var(--font-display); font-weight:400; font-size:23px; color:#FFFFFF; line-height:1.15;}
 
-    /* section labels rendered via st.markdown("#### ...") */
+    /* uppercase-eyebrow section dividers — no rule line, just tracked label */
     h4{
-        font-family:var(--font-sans) !important; font-weight:700 !important; font-size:11px !important;
-        letter-spacing:.14em !important; text-transform:uppercase !important; color:var(--kdx-ink-400) !important;
-        border-bottom:1px solid var(--kdx-ink-200); padding-bottom:8px; margin-top:1.6rem !important;
+        font-family:var(--font-sans) !important; font-weight:700 !important; font-size:9.5px !important;
+        letter-spacing:.18em !important; text-transform:uppercase !important; color:var(--kdx-ink-400) !important;
+        margin-top:1.5rem !important; margin-bottom:.6rem !important;
     }
+    div[data-testid="stForm"] hr, section.main hr{border-color:var(--kdx-ink-100) !important; margin:1.1rem 0 !important;}
 
     /* card-style bordered sections: form + the container just above it */
     div[data-testid="stForm"]{
@@ -120,6 +125,11 @@ st.html(
         background:#FFFFFF !important;
     }
     .stTextInput input:focus{border-color:var(--kdx-tiger) !important; box-shadow:0 0 0 1px var(--kdx-tiger) !important;}
+
+    /* KHP project picker — pill treatment, not a bare dropdown */
+    div[data-testid="stSelectbox"] div[data-baseweb="select"] > div{
+        border-radius:4px !important; padding-left:2px !important;
+    }
 
     /* primary action button (form submit) */
     div[data-testid="stFormSubmitButton"] button{
@@ -146,10 +156,25 @@ st.html(
         font-family:var(--font-sans) !important; font-weight:700 !important; border:none !important;
     }
 
+    /* "Logged in as X" — a tinted status line, not a default green alert box */
+    .kdx-signed-in{
+        display:inline-flex; align-items:center; gap:7px; font-family:var(--font-sans);
+        font-size:11.5px; font-weight:600; color:var(--kdx-success); margin:0 0 .75rem;
+    }
+    .kdx-signed-in::before{
+        content:""; width:6px; height:6px; border-radius:50%; background:var(--kdx-success);
+    }
+
+    /* page title over the header band */
+    .kdx-page-title{
+        font-family:var(--font-sans) !important; font-weight:700 !important; font-size:15px !important;
+        color:var(--kdx-charcoal) !important; letter-spacing:.01em; margin:.25rem 0 1rem;
+    }
+
     /* narrow-viewport safety: keep the header band flush and content padded */
     @media (max-width: 480px){
         .block-container{padding-left:0.9rem; padding-right:0.9rem;}
-        .kdx-app-header{margin:-1rem -0.9rem 1.25rem -0.9rem; padding:18px 18px 20px;}
+        .kdx-app-header{margin:0 -0.9rem 1.5rem -0.9rem; padding:20px 18px 22px;}
         .kdx-app-title{font-size:19px;}
     }
     </style>
@@ -240,14 +265,12 @@ claims = st.session_state.token["id_token_claims"]
 email = claims.get("preferred_username")
 name = claims.get("name")
 
-st.success(f"Logged in as {name}")
+st.html(f'<div class="kdx-signed-in">Logged in as {name}</div>')
 
 # Optional domain restriction
 if not email.endswith("@kaedix.com"):
     st.error("Unauthorized user")
     st.stop()
-
-st.divider()
 
 # ─────────────────────────────────────────────
 # PROJECT REGISTRY
@@ -263,7 +286,7 @@ PROJECTS = {
 # ─────────────────────────────────────────────
 # MAIN FORM
 # ─────────────────────────────────────────────
-st.subheader("Subcontractor Agreement")
+st.html('<div class="kdx-page-title">Subcontractor Agreement</div>')
 
 # ── Project Information ───────────────────────────────────────────────────
 # Lives outside the form so selecting a Project ID can autofill the address.
@@ -359,12 +382,13 @@ with st.form("agreement_form"):
 st.markdown(
     """
     <style>
-    div[data-testid="stFormSubmitButton"]:has(button[kind="secondary"]) button {
+    div[data-testid="stFormSubmitButton"]:has(button[kind="secondaryFormSubmit"]) button {
         border: none !important;
         background: none !important;
         color: #6b6b6b !important;
         font-size: 0.85rem !important;
         text-decoration: underline !important;
+        text-underline-offset: 2px !important;
         padding: 0 !important;
         box-shadow: none !important;
         float: right;
