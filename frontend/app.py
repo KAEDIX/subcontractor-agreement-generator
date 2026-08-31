@@ -1,5 +1,4 @@
 import base64
-import json
 import os
 import re
 import sys
@@ -19,6 +18,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from backend.agreement_generator import generate_agreement_pdf
 from backend.docuseal_client import create_submission
+from backend.khp_registry import load_properties, KHPRegistryError
 
 
 def _normalize_phone(raw: str) -> str | None:
@@ -276,35 +276,13 @@ if not email.endswith("@kaedix.com"):
 # ─────────────────────────────────────────────
 # PROJECT REGISTRY
 # ─────────────────────────────────────────────
-KHP_CACHE_DIR = Path(os.environ.get("KHP_CACHE_DIR", os.path.expanduser("~/GitHub/khp-property-cache")))
-
-
-def _load_projects(cache_dir: Path) -> dict[str, str]:
-    """Read {KHP_CODE: "street, city, state zip"} from each KHP00X/khp00x.json
-    property record in the khp-property-cache repo (identity.street_address/
-    city/state/zip). Skips a property record that's missing or malformed
-    rather than failing the whole load."""
-    projects = {}
-    for json_path in sorted(cache_dir.glob("KHP0*/khp0*.json")):
-        if not re.fullmatch(r"khp\d{3}\.json", json_path.name):
-            continue  # e.g. khp006_exec_summary_content.json
-        try:
-            identity = json.loads(json_path.read_text()).get("identity") or {}
-        except (OSError, json.JSONDecodeError):
-            continue
-        code = identity.get("khp_code") or json_path.parent.name
-        street, city, state, zip_ = (identity.get(k) for k in ("street_address", "city", "state", "zip"))
-        if street and city and state and zip_:
-            projects[code] = f"{street}, {city}, {state} {zip_}"
-    return projects
-
-
-PROJECTS = _load_projects(KHP_CACHE_DIR)
-if not PROJECTS:
-    st.error(
-        f"No properties found in khp-property-cache ({KHP_CACHE_DIR}). "
-        "Check the checkout, or set KHP_CACHE_DIR to point at it."
-    )
+try:
+    PROJECTS = {
+        p["khp_code"]: f'{p["street_address"]}, {p["city"]}, {p["state"]} {p["zip"]}'
+        for p in load_properties()
+    }
+except KHPRegistryError as e:
+    st.error(f"{e}. Clone it: git clone https://github.com/KAEDIX/khp-property-cache.git")
     st.stop()
 
 # ─────────────────────────────────────────────
@@ -364,13 +342,13 @@ with st.form("agreement_form"):
     st.divider()
 
     # ── KAEDIX Signatory ──────────────────────────────────────────────────
+    # The signer is whoever is logged in (MSAL claims), not a free-text field —
+    # only the title varies per document.
     st.markdown("#### KAEDIX Signatory")
-    col5, col6 = st.columns(2)
-    with col5:
-        signatory_name  = st.text_input("Signatory Name", placeholder="Person signing for KAEDIX")
-        signatory_email = st.text_input("Signatory Email")
-    with col6:
-        signatory_title = st.text_input("Signatory Title", placeholder="e.g. Managing Member")
+    st.markdown(f"Signing as **{name}** ({email})")
+    signatory_name  = name
+    signatory_email = email
+    signatory_title = st.text_input("Signatory Title", placeholder="e.g. Managing Member")
 
     st.divider()
 
