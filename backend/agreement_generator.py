@@ -156,78 +156,90 @@ def _populate_xml(xml: str, f: dict) -> str:
 # rendered PDF's text layer so DocuSeal can locate them, but not visible on the page.
 _HIDDEN_TAG_RPR = '<w:rPr><w:color w:val="FFFFFF"/><w:sz w:val="2"/><w:szCs w:val="2"/></w:rPr>'
 
+# Same, but without the sz override. A tiny-font run dropped into a
+# paragraph that previously had no runs at all becomes that paragraph's
+# only sizing signal and collapses its line height (the row shrinks), so
+# the blank spacer paragraphs use this instead — invisible via color alone,
+# sized like normal text so the row keeps its original height.
+_HIDDEN_TAG_RPR_NORMAL_SIZE = '<w:rPr><w:color w:val="FFFFFF"/></w:rPr>'
 
-def _tag_run(tag: str) -> str:
-    return f'<w:r>{_HIDDEN_TAG_RPR}<w:t>{tag}</w:t></w:r>'
+
+def _tag_run(tag: str, *, normal_size: bool = False) -> str:
+    rpr = _HIDDEN_TAG_RPR_NORMAL_SIZE if normal_size else _HIDDEN_TAG_RPR
+    return f'<w:r>{rpr}<w:t>{tag}</w:t></w:r>'
 
 
 def _add_signature_tags(xml: str) -> str:
     """
-    Embed DocuSeal {{...}} text tags next to each Signature/Date line in the
-    Signatures section, mirroring the document's own signature blocks. Each
-    anchor below is matched on its unique paraId so KAEDIX (left column) and
-    Subcontractor (right column) get distinct fields.
+    Embed DocuSeal {{...}} text tags in the Signatures section, mirroring the
+    document's own signature blocks. Each anchor below is matched on its
+    unique paraId so KAEDIX (left column) and Subcontractor (right column)
+    get distinct fields.
 
-    The tag renders inline right after the "Signature:"/"Date:" label, so
-    DocuSeal anchors the field at the label's own line and extends the
-    field's height downward from there. Each row's ruled line sits exactly
-    34pt below that anchor — the same as the field's original height — so a
-    34pt-tall field lands right on top of the line instead of clearing it.
-    Shrinking the field to leave a visible margin (measured against the
-    rendered PDF's actual line/label coordinates, not guessed) keeps it
-    inside the blank space above the line, like every other row's value.
+    DocuSeal anchors a field at the tag's own text position and extends its
+    height downward from there. Every row in this table prints its label at
+    the TOP of the row, with a blank paragraph below it before the row's own
+    ruled line — i.e. the printed value (like Name/Title/Email) sits ABOVE
+    the line, in the gap between the label and the rule, not below it. So
+    each tag is planted in the blank paragraph that already sits directly
+    above the ruled line it should clear — the previous row's spacer, not
+    the Signature:/Date: label's own paragraph — instead of relying on a
+    guessed height to out-run the wrong line. Measured against the rendered
+    PDF: each such gap is ~30pt tall, so height=20 (signature) / height=14
+    (date) clears the rule below by ~10pt with room to spare.
     """
 
-    # KAEDIX — Signature
+    # KAEDIX — Signature: planted in the blank paragraph below Email/KAEDIX,
+    # which sits directly above the Signature row's own ruled line.
     xml = xml.replace(
-        '<w:p w14:paraId="0000010A" w14:textId="536EAB7E" w:rsidR="008777A2" w:rsidRDefault="00F13F85" w:rsidP="008777A2">'
+        '<w:p w14:paraId="00000105" w14:textId="00000106" w:rsidR="008777A2" w:rsidRDefault="008777A2" w:rsidP="008777A2">'
+        '<w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:pPr></w:p>',
+        '<w:p w14:paraId="00000105" w14:textId="00000106" w:rsidR="008777A2" w:rsidRDefault="008777A2" w:rsidP="008777A2">'
         '<w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:pPr>'
-        '<w:r><w:rPr><w:b/><w:bCs/></w:rPr><w:t>Signature:</w:t></w:r></w:p>',
-        '<w:p w14:paraId="0000010A" w14:textId="536EAB7E" w:rsidR="008777A2" w:rsidRDefault="00F13F85" w:rsidP="008777A2">'
-        '<w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:pPr>'
-        '<w:r><w:rPr><w:b/><w:bCs/></w:rPr><w:t>Signature:</w:t></w:r>'
-        + _tag_run('{{Signature_KAEDIX;role=KAEDIX;type=signature;width=180;height=22}}')
+        + _tag_run('{{Signature_KAEDIX;role=KAEDIX;type=signature;width=180;height=26}}', normal_size=True)
         + '</w:p>',
     )
 
-    # Subcontractor — Signature
+    # Subcontractor — Signature: planted in the blank paragraph below
+    # Email/Subcontractor, directly above the Signature row's own line.
+    xml = xml.replace(
+        '<w:p w14:paraId="00000101" w14:textId="7F9B57AD" w:rsidR="008777A2" w:rsidRDefault="008777A2" w:rsidP="008777A2">'
+        '<w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:pPr></w:p>',
+        '<w:p w14:paraId="00000101" w14:textId="7F9B57AD" w:rsidR="008777A2" w:rsidRDefault="008777A2" w:rsidP="008777A2">'
+        '<w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:pPr>'
+        + _tag_run('{{Signature_Sub;role=Subcontractor;type=signature;width=180;height=26}}', normal_size=True)
+        + '</w:p>',
+    )
+
+    # KAEDIX — Date: planted in the blank paragraph below Signature/KAEDIX,
+    # directly above the Date row's own ruled line.
+    xml = xml.replace(
+        '<w:p w14:paraId="00000110" w14:textId="00000111" w:rsidR="008777A2" w:rsidRDefault="008777A2" w:rsidP="008777A2">'
+        '<w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:pPr></w:p>',
+        '<w:p w14:paraId="00000110" w14:textId="00000111" w:rsidR="008777A2" w:rsidRDefault="008777A2" w:rsidP="008777A2">'
+        '<w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:pPr>'
+        + _tag_run('{{Date_KAEDIX;role=KAEDIX;type=date;width=120;height=20}}', normal_size=True)
+        + '</w:p>',
+    )
+
+    # Subcontractor — Date: the Subcontractor column has no separate blank
+    # spacer paragraph below Signature/Subcontractor the way the KAEDIX
+    # column does (paraId 00000110) — that row is only as tall as it is
+    # because the KAEDIX column's spacer forces the shared row height. Add
+    # the same kind of spacer paragraph here, mirroring the KAEDIX column,
+    # and plant the tag there instead of inline on the label (which would
+    # anchor at the label's own top and reproduce the exact bug being fixed).
     xml = xml.replace(
         '<w:p w14:paraId="0000010C" w14:textId="165B9C7D" w:rsidR="008777A2" w:rsidRDefault="00F13F85" w:rsidP="008777A2">'
         '<w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:pPr>'
-        '<w:r><w:rPr><w:b/><w:bCs/></w:rPr><w:t>Signature:</w:t></w:r></w:p>',
+        '<w:r><w:rPr><w:b/><w:bCs/></w:rPr><w:t>Signature:</w:t></w:r></w:p></w:tc>',
         '<w:p w14:paraId="0000010C" w14:textId="165B9C7D" w:rsidR="008777A2" w:rsidRDefault="00F13F85" w:rsidP="008777A2">'
         '<w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:pPr>'
-        '<w:r><w:rPr><w:b/><w:bCs/></w:rPr><w:t>Signature:</w:t></w:r>'
-        + _tag_run('{{Signature_Sub;role=Subcontractor;type=signature;width=180;height=22}}')
-        + '</w:p>',
-    )
-
-    # KAEDIX — Date
-    xml = xml.replace(
-        '<w:p w14:paraId="00000115" w14:textId="57B5D25F" w:rsidR="008777A2" w:rsidRDefault="008777A2" w:rsidP="008777A2">'
+        '<w:r><w:rPr><w:b/><w:bCs/></w:rPr><w:t>Signature:</w:t></w:r></w:p>'
+        '<w:p w14:paraId="00000113" w14:textId="00000113" w:rsidR="008777A2" w:rsidRDefault="008777A2" w:rsidP="008777A2">'
         '<w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:pPr>'
-        '<w:r><w:rPr><w:b/><w:bCs/></w:rPr><w:t>Date</w:t></w:r>'
-        '<w:r w:rsidR="00F13F85"><w:rPr><w:b/><w:bCs/></w:rPr><w:t>:</w:t></w:r></w:p>',
-        '<w:p w14:paraId="00000115" w14:textId="57B5D25F" w:rsidR="008777A2" w:rsidRDefault="008777A2" w:rsidP="008777A2">'
-        '<w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:pPr>'
-        '<w:r><w:rPr><w:b/><w:bCs/></w:rPr><w:t>Date</w:t></w:r>'
-        '<w:r w:rsidR="00F13F85"><w:rPr><w:b/><w:bCs/></w:rPr><w:t>:</w:t></w:r>'
-        + _tag_run('{{Date_KAEDIX;role=KAEDIX;type=date;width=120;height=16}}')
-        + '</w:p>',
-    )
-
-    # Subcontractor — Date
-    xml = xml.replace(
-        '<w:p w14:paraId="00000117" w14:textId="755458EE" w:rsidR="008777A2" w:rsidRDefault="008777A2" w:rsidP="008777A2">'
-        '<w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:pPr>'
-        '<w:r><w:rPr><w:b/><w:bCs/></w:rPr><w:t>Date</w:t></w:r>'
-        '<w:r w:rsidR="00F13F85"><w:rPr><w:b/><w:bCs/></w:rPr><w:t>:</w:t></w:r></w:p>',
-        '<w:p w14:paraId="00000117" w14:textId="755458EE" w:rsidR="008777A2" w:rsidRDefault="008777A2" w:rsidP="008777A2">'
-        '<w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:pPr>'
-        '<w:r><w:rPr><w:b/><w:bCs/></w:rPr><w:t>Date</w:t></w:r>'
-        '<w:r w:rsidR="00F13F85"><w:rPr><w:b/><w:bCs/></w:rPr><w:t>:</w:t></w:r>'
-        + _tag_run('{{Date_Sub;role=Subcontractor;type=date;width=120;height=16}}')
-        + '</w:p>',
+        + _tag_run('{{Date_Sub;role=Subcontractor;type=date;width=120;height=20}}', normal_size=True)
+        + '</w:p></w:tc>',
     )
 
     return xml
