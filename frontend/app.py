@@ -1,6 +1,8 @@
+import base64
 import os
 import re
 import sys
+import textwrap
 import streamlit as st
 import msal
 from dotenv import load_dotenv
@@ -31,6 +33,14 @@ def _normalize_phone(raw: str) -> str | None:
 
 BASE_DIR = Path(__file__).resolve().parent
 ICON_PATH = BASE_DIR / ".." / "template" / "kaedix_icon.png"
+WORDMARK_PATH = BASE_DIR / ".." / "template" / "kaedix_wordmark.png"
+
+
+def _img_data_uri(path: Path) -> str:
+    try:
+        return "data:image/png;base64," + base64.b64encode(path.read_bytes()).decode()
+    except FileNotFoundError:
+        return ""
 
 # -----------------------
 # ENV + MSAL CONFIG
@@ -51,28 +61,112 @@ st.set_page_config(
     layout="centered"
 )
 
-st.markdown(
-    """
-    <div style="text-align:center; margin-bottom: 10px;">
-        <div style="
-            font-size:36px;
-            font-weight:600;
-            letter-spacing:0.7px;
-            color:#f57c00;
-        ">
-            KAEDIX
-        </div>
-        <div style="
-            font-size:20px;
-            font-weight:500;
-            color:#333;
-            margin-top:4px;
-        ">
-            Subcontractor Agreement Generator
+# ─────────────────────────────────────────────
+# KAEDIX / PUNCH-AI DESIGN LANGUAGE
+# ─────────────────────────────────────────────
+st.html(
+    textwrap.dedent("""
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,300..700&display=swap" rel="stylesheet">
+    <style>
+    :root{
+        --kdx-tiger:#FF671F; --kdx-tiger-700:#C94A0E;
+        --kdx-navy:#0A294A; --kdx-charcoal:#2D2D2D; --kdx-graphite:#666666; --kdx-iron:#454545;
+        --kdx-ink-50:#FAFAF8; --kdx-ink-100:#F2F1EE; --kdx-ink-200:#E5E3DE; --kdx-ink-300:#C9C6BF; --kdx-ink-400:#9A978F;
+        --font-display:'DM Serif Display',Georgia,serif;
+        --font-sans:'DM Sans',-apple-system,sans-serif;
+    }
+
+    /* ground + base type */
+    .stApp{background:var(--kdx-ink-50);}
+    html, body, [class*="css"]{font-family:var(--font-sans);}
+    .block-container{max-width:720px; padding-top:1rem; padding-bottom:3rem;}
+
+    /* app header band */
+    .kdx-app-header{
+        background:var(--kdx-navy); margin:-1rem -1rem 1.5rem -1rem; padding:22px 24px 26px;
+        border-radius:0 0 8px 8px; display:flex; align-items:center; gap:14px;
+    }
+    .kdx-app-header img{height:26px; width:auto; display:block;}
+    .kdx-app-eyebrow{
+        font-family:var(--font-sans); font-size:10px; font-weight:700; letter-spacing:.22em;
+        text-transform:uppercase; color:#FFC4A3; margin-bottom:4px;
+    }
+    .kdx-app-title{font-family:var(--font-display); font-weight:400; font-size:22px; color:#FFFFFF; line-height:1.15;}
+
+    /* section labels rendered via st.markdown("#### ...") */
+    h4{
+        font-family:var(--font-sans) !important; font-weight:700 !important; font-size:11px !important;
+        letter-spacing:.14em !important; text-transform:uppercase !important; color:var(--kdx-ink-400) !important;
+        border-bottom:1px solid var(--kdx-ink-200); padding-bottom:8px; margin-top:1.6rem !important;
+    }
+
+    /* card-style bordered sections: form + the container just above it */
+    div[data-testid="stForm"]{
+        border:1px solid var(--kdx-ink-200) !important; border-radius:6px !important;
+        background:#FFFFFF; padding:20px 20px 8px 20px;
+        box-shadow:0 1px 2px rgba(45,45,45,.04);
+    }
+
+    /* inputs */
+    label, .stTextInput label, .stSelectbox label{
+        font-family:var(--font-sans) !important; font-size:10.5px !important; font-weight:700 !important;
+        color:var(--kdx-iron) !important; letter-spacing:.03em !important;
+    }
+    .stTextInput input, .stSelectbox div[data-baseweb="select"] > div, textarea{
+        border-radius:4px !important; border:1px solid var(--kdx-ink-300) !important;
+        font-family:var(--font-sans) !important; font-size:13px !important; color:var(--kdx-charcoal) !important;
+        background:#FFFFFF !important;
+    }
+    .stTextInput input:focus{border-color:var(--kdx-tiger) !important; box-shadow:0 0 0 1px var(--kdx-tiger) !important;}
+
+    /* primary action button (form submit) */
+    div[data-testid="stFormSubmitButton"] button{
+        background:var(--kdx-tiger) !important; color:#FFFFFF !important; border:none !important;
+        border-radius:4px !important; font-family:var(--font-sans) !important; font-weight:700 !important;
+        font-size:13px !important; letter-spacing:.02em !important; padding:12px !important;
+        box-shadow:0 2px 8px rgba(255,103,31,.28) !important;
+    }
+    div[data-testid="stFormSubmitButton"] button:hover{background:var(--kdx-tiger-700) !important;}
+
+    /* de-emphasized secondary action ("Download PDF") — corner-link, not a button */
+    div[data-testid="stDownloadButton"] button{
+        background:transparent !important; color:var(--kdx-graphite) !important;
+        border:none !important; box-shadow:none !important; text-decoration:underline !important;
+        text-underline-offset:2px !important; font-family:var(--font-sans) !important;
+        font-size:11px !important; font-weight:600 !important; padding:4px 0 !important;
+        width:auto !important; float:right;
+    }
+    div[data-testid="stDownloadButton"]{display:flex; justify-content:flex-end;}
+
+    /* sign-in link-button, kept tiger */
+    .stLinkButton a{
+        background:var(--kdx-tiger) !important; color:#FFFFFF !important; border-radius:4px !important;
+        font-family:var(--font-sans) !important; font-weight:700 !important; border:none !important;
+    }
+
+    /* narrow-viewport safety: keep the header band flush and content padded */
+    @media (max-width: 480px){
+        .block-container{padding-left:0.9rem; padding-right:0.9rem;}
+        .kdx-app-header{margin:-1rem -0.9rem 1.25rem -0.9rem; padding:18px 18px 20px;}
+        .kdx-app-title{font-size:19px;}
+    }
+    </style>
+    """)
+)
+
+_wordmark_uri = _img_data_uri(WORDMARK_PATH)
+st.html(
+    textwrap.dedent(f"""
+    <div class="kdx-app-header">
+        {'<img src="' + _wordmark_uri + '" alt="KAEDIX" />' if _wordmark_uri else ''}
+        <div>
+            <div class="kdx-app-eyebrow">KAEDIX Document Portal</div>
+            <div class="kdx-app-title">Subcontractor Agreement Generator</div>
         </div>
     </div>
-    """,
-    unsafe_allow_html=True
+    """)
 )
 
 @st.cache_resource
@@ -90,6 +184,15 @@ msal_app = build_msal_app()
 # -----------------------
 if "token" not in st.session_state:
     st.session_state.token = None
+
+# LOCAL SCREENSHOT BYPASS — not for commit, dev-only auth stub
+if os.environ.get("SCREENSHOT_BYPASS_AUTH"):
+    st.session_state.token = {
+        "id_token_claims": {
+            "preferred_username": "seth.porter@kaedix.com",
+            "name": "Seth Porter",
+        }
+    }
 
 # -----------------------
 # HANDLE MICROSOFT REDIRECT
@@ -123,11 +226,9 @@ if not st.session_state.token:
     )
     st.link_button("Sign in", auth_url, use_container_width=True)
     st.markdown(
-        """
-        <div style="text-align:center; color: #6b6b6b; font-size: 0.85rem;">
-            For authorized internal use only. © 2026 KAEDIX
-        </div>
-        """,
+        '<div style="text-align:center; color:#9A978F; font-size:0.8rem; margin-top:8px; '
+        'font-family:\'DM Sans\',-apple-system,sans-serif;">'
+        'For authorized internal use only. © 2026 KAEDIX</div>',
         unsafe_allow_html=True
     )
     st.stop()
@@ -244,30 +345,61 @@ with st.form("agreement_form"):
     with col8:
         send_via_text = st.checkbox("Send via text")
 
-    submit = st.form_submit_button("Generate Agreement PDF", use_container_width=True)
+    send_clicked = st.form_submit_button(
+        "Send PDF for Signature", use_container_width=True, type="primary"
+    )
+    dl_col = st.columns([3, 1])[1]
+    with dl_col:
+        download_clicked = st.form_submit_button(
+            "Download PDF", use_container_width=True
+        )
+
+# Demote the "Download PDF" form button to a plain corner link, not a button.
+st.markdown(
+    """
+    <style>
+    div[data-testid="stFormSubmitButton"]:has(button[kind="secondary"]) button {
+        border: none;
+        background: none;
+        color: #6b6b6b;
+        font-size: 0.85rem;
+        text-decoration: underline;
+        padding: 0;
+        box-shadow: none;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 # ─────────────────────────────────────────────
 # GENERATION
 # ─────────────────────────────────────────────
-if submit:
+if send_clicked or download_clicked:
     if not subcontractor_name and not company_name:
         st.warning("Please enter at least a Subcontractor Name or Company Name.")
         st.stop()
 
     normalized_phone = _normalize_phone(sub_phone)
 
-    send_errors = []
-    if send_via_email and not sub_email:
-        send_errors.append("Subcontractor Email is required to send via email.")
-    if send_via_text and not normalized_phone:
-        send_errors.append(
-            "Subcontractor Phone must be a valid US number to send via text "
-            "(e.g. (602) 555-0123 or +16025550123)."
-        )
-    if send_errors:
-        for err in send_errors:
-            st.warning(err)
-        st.stop()
+    if send_clicked:
+        send_errors = []
+        if not send_via_email and not send_via_text:
+            send_errors.append(
+                "Check Send via email or Send via text before sending — "
+                "or use the Download PDF link below to just get the file."
+            )
+        if send_via_email and not sub_email:
+            send_errors.append("Subcontractor Email is required to send via email.")
+        if send_via_text and not normalized_phone:
+            send_errors.append(
+                "Subcontractor Phone must be a valid US number to send via text "
+                "(e.g. (602) 555-0123 or +16025550123)."
+            )
+        if send_errors:
+            for err in send_errors:
+                st.warning(err)
+            st.stop()
 
     if appendix_pdfs:
         st.caption(
@@ -295,22 +427,22 @@ if submit:
                 signatory_title=signatory_title,
                 signatory_email=signatory_email,
                 appendix_pdf_bytes_list=appendix_bytes_list,
-                include_signature_tags=(send_via_email or send_via_text),
+                include_signature_tags=send_clicked,
             )
         except Exception as e:
             st.error(f"Generation failed: {e}")
             st.stop()
 
-    st.success("Agreement generated!")
-    st.download_button(
-        label="Download PDF",
-        data=pdf_bytes,
-        file_name=filename,
-        mime="application/pdf",
-        use_container_width=True,
-    )
+    if download_clicked:
+        st.download_button(
+            label="Download PDF",
+            data=pdf_bytes,
+            file_name=filename,
+            mime="application/pdf",
+            use_container_width=True,
+        )
 
-    if send_via_email or send_via_text:
+    if send_clicked:
         with st.spinner("Sending for signature…"):
             try:
                 result = create_submission(
