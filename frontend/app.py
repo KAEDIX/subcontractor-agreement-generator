@@ -281,10 +281,13 @@ if not email.endswith("@kaedix.com"):
 # ─────────────────────────────────────────────
 # PROJECT REGISTRY
 # ─────────────────────────────────────────────
+_INACTIVE_STATUSES = {"dead", "sold", "closed"}
+
 try:
     PROJECTS = {
         p["khp_code"]: f'{p["street_address"]}, {p["city"]}, {p["state"]} {p["zip"]}'
         for p in load_properties()
+        if (p["status"] or "").lower() not in _INACTIVE_STATUSES
     }
 except KHPRegistryError as e:
     st.error(f"{e}. Clone it: git clone https://github.com/KAEDIX/khp-property-cache.git")
