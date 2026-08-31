@@ -33,7 +33,7 @@ def _normalize_phone(raw: str) -> str | None:
 
 BASE_DIR = Path(__file__).resolve().parent
 ICON_PATH = BASE_DIR / ".." / "template" / "kaedix_icon.png"
-WORDMARK_PATH = BASE_DIR / ".." / "template" / "kdx_wordmark_white.png"
+WORDMARK_PATH = BASE_DIR / ".." / "template" / "kdx_combo_white.png"
 
 
 def _img_data_uri(path: Path) -> str:
