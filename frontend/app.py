@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import streamlit as st
 import msal
@@ -14,6 +15,21 @@ PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from backend.agreement_generator import generate_agreement_pdf
+from backend.docuseal_client import create_submission
+
+KAEDIX_SIGNER_EMAIL = "seth.porter@kaedix.com"
+
+
+def _normalize_phone(raw: str) -> str | None:
+    """Return an E.164 US number ('+1XXXXXXXXXX') if raw parses as one, else None."""
+    digits = re.sub(r"\D", "", raw or "")
+    if len(digits) == 10:
+        return f"+1{digits}"
+    if len(digits) == 11 and digits.startswith("1"):
+        return f"+{digits}"
+    if raw.startswith("+") and re.fullmatch(r"\+1\d{10}", raw):
+        return raw
+    return None
 
 BASE_DIR = Path(__file__).resolve().parent
 ICON_PATH = BASE_DIR / ".." / "template" / "kaedix_icon.png"
@@ -191,6 +207,7 @@ with st.form("agreement_form"):
     with col4:
         company_name = st.text_input("Company Name", placeholder="If different from individual name")
         sub_email    = st.text_input("Subcontractor Email")
+        sub_phone    = st.text_input("Subcontractor Phone", placeholder="e.g. (602) 555-0123")
 
     st.divider()
 
@@ -219,6 +236,16 @@ with st.form("agreement_form"):
         accept_multiple_files=True,
     )
 
+    st.divider()
+
+    # ── Send for signature ──────────────────────────────────────────────────
+    st.markdown("#### Send for Signature")
+    col7, col8 = st.columns(2)
+    with col7:
+        send_via_email = st.checkbox("Send via email")
+    with col8:
+        send_via_text = st.checkbox("Send via text")
+
     submit = st.form_submit_button("Generate Agreement PDF", use_container_width=True)
 
 # ─────────────────────────────────────────────
@@ -227,43 +254,80 @@ with st.form("agreement_form"):
 if submit:
     if not subcontractor_name and not company_name:
         st.warning("Please enter at least a Subcontractor Name or Company Name.")
-    else:
-        if appendix_pdfs:
-            st.caption(
-                "Appendices will be appended in this order: "
-                + ", ".join(f"{i}. {f.name}" for i, f in enumerate(appendix_pdfs, 1))
+        st.stop()
+
+    normalized_phone = _normalize_phone(sub_phone)
+
+    send_errors = []
+    if send_via_email and not sub_email:
+        send_errors.append("Subcontractor Email is required to send via email.")
+    if send_via_text and not normalized_phone:
+        send_errors.append(
+            "Subcontractor Phone must be a valid US number to send via text "
+            "(e.g. (602) 555-0123 or +16025550123)."
+        )
+    if send_errors:
+        for err in send_errors:
+            st.warning(err)
+        st.stop()
+
+    if appendix_pdfs:
+        st.caption(
+            "Appendices will be appended in this order: "
+            + ", ".join(f"{i}. {f.name}" for i, f in enumerate(appendix_pdfs, 1))
+        )
+
+    with st.spinner("Generating PDF…"):
+        try:
+            appendix_bytes_list = (
+                [f.read() for f in appendix_pdfs] if appendix_pdfs else None
             )
-        with st.spinner("Generating PDF…"):
+            pdf_bytes, filename = generate_agreement_pdf(
+                project_id=project_id,
+                project_address=project_address,
+                agreement_date=agreement_date,
+                start_date=start_date,
+                completion_date=completion_date,
+                subcontractor_name=subcontractor_name,
+                company_name=company_name,
+                license_number=license_number,
+                sub_email=sub_email,
+                total_amount=total_amount,
+                signatory_name=signatory_name,
+                signatory_title=signatory_title,
+                signatory_email=signatory_email,
+                appendix_pdf_bytes_list=appendix_bytes_list,
+                include_signature_tags=(send_via_email or send_via_text),
+            )
+        except Exception as e:
+            st.error(f"Generation failed: {e}")
+            st.stop()
+
+    st.success("Agreement generated!")
+    st.download_button(
+        label="Download PDF",
+        data=pdf_bytes,
+        file_name=filename,
+        mime="application/pdf",
+        use_container_width=True,
+    )
+
+    if send_via_email or send_via_text:
+        with st.spinner("Sending for signature…"):
             try:
-                appendix_bytes_list = (
-                    [f.read() for f in appendix_pdfs] if appendix_pdfs else None
+                result = create_submission(
+                    pdf_bytes=pdf_bytes,
+                    filename=filename,
+                    kaedix_email=KAEDIX_SIGNER_EMAIL,
+                    sub_name=company_name or subcontractor_name,
+                    sub_email=sub_email or None,
+                    sub_phone=normalized_phone,
+                    send_email=send_via_email,
+                    send_sms=send_via_text,
                 )
-                pdf_bytes, filename = generate_agreement_pdf(
-                    project_id=project_id,
-                    project_address=project_address,
-                    agreement_date=agreement_date,
-                    start_date=start_date,
-                    completion_date=completion_date,
-                    subcontractor_name=subcontractor_name,
-                    company_name=company_name,
-                    license_number=license_number,
-                    sub_email=sub_email,
-                    total_amount=total_amount,
-                    signatory_name=signatory_name,
-                    signatory_title=signatory_title,
-                    signatory_email=signatory_email,
-                    appendix_pdf_bytes_list=appendix_bytes_list,
-                )
-                st.success("Agreement generated!")
-                st.download_button(
-                    label="Download PDF",
-                    data=pdf_bytes,
-                    file_name=filename,
-                    mime="application/pdf",
-                    use_container_width=True,
-                )
+                st.success(f"Sent for signature — DocuSeal submission ID {result['id']}")
             except Exception as e:
-                st.error(f"Generation failed: {e}")
+                st.error(f"Sending for signature failed: {e}")
 
 # ─────────────────────────────────────────────
 # SIGN OUT

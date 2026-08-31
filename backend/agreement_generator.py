@@ -152,6 +152,78 @@ def _populate_xml(xml: str, f: dict) -> str:
     return xml
 
 
+# Invisible (white, 1pt) run properties for DocuSeal text tags — present in the
+# rendered PDF's text layer so DocuSeal can locate them, but not visible on the page.
+_HIDDEN_TAG_RPR = '<w:rPr><w:color w:val="FFFFFF"/><w:sz w:val="2"/><w:szCs w:val="2"/></w:rPr>'
+
+
+def _tag_run(tag: str) -> str:
+    return f'<w:r>{_HIDDEN_TAG_RPR}<w:t>{tag}</w:t></w:r>'
+
+
+def _add_signature_tags(xml: str) -> str:
+    """
+    Embed DocuSeal {{...}} text tags next to each Signature/Date line in the
+    Signatures section, mirroring the document's own signature blocks. Each
+    anchor below is matched on its unique paraId so KAEDIX (left column) and
+    Subcontractor (right column) get distinct fields.
+    """
+
+    # KAEDIX — Signature
+    xml = xml.replace(
+        '<w:p w14:paraId="0000010A" w14:textId="536EAB7E" w:rsidR="008777A2" w:rsidRDefault="00F13F85" w:rsidP="008777A2">'
+        '<w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:pPr>'
+        '<w:r><w:rPr><w:b/><w:bCs/></w:rPr><w:t>Signature:</w:t></w:r></w:p>',
+        '<w:p w14:paraId="0000010A" w14:textId="536EAB7E" w:rsidR="008777A2" w:rsidRDefault="00F13F85" w:rsidP="008777A2">'
+        '<w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:pPr>'
+        '<w:r><w:rPr><w:b/><w:bCs/></w:rPr><w:t>Signature:</w:t></w:r>'
+        + _tag_run('{{Signature_KAEDIX;role=KAEDIX;type=signature;width=180;height=34}}')
+        + '</w:p>',
+    )
+
+    # Subcontractor — Signature
+    xml = xml.replace(
+        '<w:p w14:paraId="0000010C" w14:textId="165B9C7D" w:rsidR="008777A2" w:rsidRDefault="00F13F85" w:rsidP="008777A2">'
+        '<w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:pPr>'
+        '<w:r><w:rPr><w:b/><w:bCs/></w:rPr><w:t>Signature:</w:t></w:r></w:p>',
+        '<w:p w14:paraId="0000010C" w14:textId="165B9C7D" w:rsidR="008777A2" w:rsidRDefault="00F13F85" w:rsidP="008777A2">'
+        '<w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:pPr>'
+        '<w:r><w:rPr><w:b/><w:bCs/></w:rPr><w:t>Signature:</w:t></w:r>'
+        + _tag_run('{{Signature_Sub;role=Subcontractor;type=signature;width=180;height=34}}')
+        + '</w:p>',
+    )
+
+    # KAEDIX — Date
+    xml = xml.replace(
+        '<w:p w14:paraId="00000115" w14:textId="57B5D25F" w:rsidR="008777A2" w:rsidRDefault="008777A2" w:rsidP="008777A2">'
+        '<w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:pPr>'
+        '<w:r><w:rPr><w:b/><w:bCs/></w:rPr><w:t>Date</w:t></w:r>'
+        '<w:r w:rsidR="00F13F85"><w:rPr><w:b/><w:bCs/></w:rPr><w:t>:</w:t></w:r></w:p>',
+        '<w:p w14:paraId="00000115" w14:textId="57B5D25F" w:rsidR="008777A2" w:rsidRDefault="008777A2" w:rsidP="008777A2">'
+        '<w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:pPr>'
+        '<w:r><w:rPr><w:b/><w:bCs/></w:rPr><w:t>Date</w:t></w:r>'
+        '<w:r w:rsidR="00F13F85"><w:rPr><w:b/><w:bCs/></w:rPr><w:t>:</w:t></w:r>'
+        + _tag_run('{{Date_KAEDIX;role=KAEDIX;type=date;width=120;height=20}}')
+        + '</w:p>',
+    )
+
+    # Subcontractor — Date
+    xml = xml.replace(
+        '<w:p w14:paraId="00000117" w14:textId="755458EE" w:rsidR="008777A2" w:rsidRDefault="008777A2" w:rsidP="008777A2">'
+        '<w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:pPr>'
+        '<w:r><w:rPr><w:b/><w:bCs/></w:rPr><w:t>Date</w:t></w:r>'
+        '<w:r w:rsidR="00F13F85"><w:rPr><w:b/><w:bCs/></w:rPr><w:t>:</w:t></w:r></w:p>',
+        '<w:p w14:paraId="00000117" w14:textId="755458EE" w:rsidR="008777A2" w:rsidRDefault="008777A2" w:rsidP="008777A2">'
+        '<w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:pPr>'
+        '<w:r><w:rPr><w:b/><w:bCs/></w:rPr><w:t>Date</w:t></w:r>'
+        '<w:r w:rsidR="00F13F85"><w:rPr><w:b/><w:bCs/></w:rPr><w:t>:</w:t></w:r>'
+        + _tag_run('{{Date_Sub;role=Subcontractor;type=date;width=120;height=20}}')
+        + '</w:p>',
+    )
+
+    return xml
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -172,10 +244,14 @@ def generate_agreement_pdf(
     signatory_email: str,
     appendix_pdf_bytes_list: list[bytes] = None,
     appendix_pdf_bytes: bytes = None,
+    include_signature_tags: bool = False,
 ) -> tuple[bytes, str]:
     """
     Populate the Word template and convert to PDF.
     Returns (pdf_bytes, filename).
+
+    include_signature_tags: embed invisible DocuSeal {{...}} text tags in the
+    Signatures section so the resulting PDF can be sent for e-signature as-is.
     """
 
     fields = {
@@ -227,6 +303,8 @@ def generate_agreement_pdf(
 
         doc_xml = files["word/document.xml"].decode("utf-8")
         doc_xml = _populate_xml(doc_xml, fields)
+        if include_signature_tags:
+            doc_xml = _add_signature_tags(doc_xml)
         files["word/document.xml"] = doc_xml.encode("utf-8")
 
         with zipfile.ZipFile(tmp_docx, "w", zipfile.ZIP_DEFLATED) as zout:

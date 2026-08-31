@@ -1,3 +1,4 @@
 streamlit
 msal
 python-dotenv
+requests
