@@ -93,7 +93,7 @@ st.html(
         background:var(--kdx-navy); margin:0 -1rem 1.75rem -1rem; padding:26px 28px 28px;
         display:flex; align-items:center; gap:14px;
     }
-    .kdx-app-header img{height:22px; width:auto; display:block;}
+    .kdx-app-header img{width:195px; height:auto; display:block;}
     .kdx-app-eyebrow{
         font-family:var(--font-sans); font-size:10px; font-weight:500; letter-spacing:.22em;
         text-transform:uppercase; color:#FFC4A3; margin-bottom:5px;
@@ -107,12 +107,16 @@ st.html(
         margin-top:1.5rem !important; margin-bottom:.6rem !important;
     }
     div[data-testid="stForm"] hr, section.main hr{border-color:var(--kdx-ink-100) !important; margin:1.1rem 0 !important;}
+    div[data-testid="stForm"] h4:first-child, div[data-testid="stVerticalBlockBorderWrapper"] h4:first-child{margin-top:.2rem !important;}
 
-    /* card-style bordered sections: form + the container just above it */
-    div[data-testid="stForm"]{
+    /* card-style bordered sections: form + the plain-container card above it —
+       one consistent card treatment for every section, not just the form */
+    div[data-testid="stForm"],
+    div[data-testid="stVerticalBlockBorderWrapper"]{
         border:1px solid var(--kdx-ink-200) !important; border-radius:6px !important;
         background:#FFFFFF; padding:20px 20px 8px 20px;
         box-shadow:0 1px 2px rgba(45,45,45,.04);
+        margin-bottom:1.1rem;
     }
 
     /* inputs */
@@ -177,6 +181,7 @@ st.html(
         .block-container{padding-left:0.9rem; padding-right:0.9rem;}
         .kdx-app-header{margin:0 -0.9rem 1.5rem -0.9rem; padding:20px 18px 22px;}
         .kdx-app-title{font-size:19px;}
+        .kdx-app-header img{width:150px;}
     }
     </style>
     """)
@@ -303,22 +308,21 @@ if "project_id" not in st.session_state:
 if "project_address" not in st.session_state:
     st.session_state.project_address = PROJECTS[st.session_state.project_id]
 
-st.markdown("#### Project Information")
-col1, col2 = st.columns(2)
-with col1:
-    project_id      = st.selectbox(
-        "Project ID",
-        options=list(PROJECTS.keys()),
-        key="project_id",
-        on_change=_autofill_project_address,
-    )
-    agreement_date  = st.text_input("Agreement Date", value=datetime.today().strftime("%m/%d/%Y"))
-    completion_date = st.text_input("Scheduled Completion Date", placeholder="MM/DD/YYYY")
-with col2:
-    project_address = st.text_input("Project Address", key="project_address")
-    start_date      = st.text_input("Scheduled Start Date", placeholder="MM/DD/YYYY")
-
-st.divider()
+with st.container(border=True):
+    st.markdown("#### Project Information")
+    col1, col2 = st.columns(2)
+    with col1:
+        project_id      = st.selectbox(
+            "Project ID",
+            options=list(PROJECTS.keys()),
+            key="project_id",
+            on_change=_autofill_project_address,
+        )
+        agreement_date  = st.text_input("Agreement Date", value=datetime.today().strftime("%m/%d/%Y"))
+        completion_date = st.text_input("Scheduled Completion Date", placeholder="MM/DD/YYYY")
+    with col2:
+        project_address = st.text_input("Project Address", key="project_address")
+        start_date      = st.text_input("Scheduled Start Date", placeholder="MM/DD/YYYY")
 
 with st.form("agreement_form"):
 
