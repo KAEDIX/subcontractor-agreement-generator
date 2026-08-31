@@ -24,6 +24,7 @@ def _token() -> str:
 def create_submission(
     pdf_bytes: bytes,
     filename: str,
+    kaedix_name: str,
     kaedix_email: str,
     sub_name: str,
     sub_email: str,
@@ -37,11 +38,13 @@ def create_submission(
     `fields` array is passed here.
 
     Submitters sign simultaneously (order=random), matching how KAEDIX sends
-    today. The KAEDIX signer always gets an email invite and never SMS.
+    today. The KAEDIX signer is whoever is logged into the app (their MSAL
+    identity) and always gets an email invite, never SMS.
     """
     submitters = [
         {
             "role": "KAEDIX",
+            "name": kaedix_name,
             "email": kaedix_email,
             "send_email": True,
             "send_sms": False,

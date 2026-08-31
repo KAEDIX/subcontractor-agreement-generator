@@ -17,8 +17,6 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from backend.agreement_generator import generate_agreement_pdf
 from backend.docuseal_client import create_submission
 
-KAEDIX_SIGNER_EMAIL = "seth.porter@kaedix.com"
-
 
 def _normalize_phone(raw: str) -> str | None:
     """Return an E.164 US number ('+1XXXXXXXXXX') if raw parses as one, else None."""
@@ -318,7 +316,8 @@ if submit:
                 result = create_submission(
                     pdf_bytes=pdf_bytes,
                     filename=filename,
-                    kaedix_email=KAEDIX_SIGNER_EMAIL,
+                    kaedix_name=name,
+                    kaedix_email=email,
                     sub_name=company_name or subcontractor_name,
                     sub_email=sub_email or None,
                     sub_phone=normalized_phone,
