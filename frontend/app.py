@@ -1,4 +1,5 @@
 import base64
+import json
 import os
 import re
 import sys
@@ -275,13 +276,36 @@ if not email.endswith("@kaedix.com"):
 # ─────────────────────────────────────────────
 # PROJECT REGISTRY
 # ─────────────────────────────────────────────
-PROJECTS = {
-    "KHP003": "8407 E Rancho Vista Dr, Scottsdale, AZ 85251",
-    "KHP004": "4949 E Shaw Butte Dr, Scottsdale, AZ 85254",
-    "KHP005": "10818 N 43rd St, Phoenix, AZ 85028",
-    "KHP006": "3832 N 85th Pl, Scottsdale, AZ 85251",
-    "KHP008": "6318 E Paradise Ln, Scottsdale, AZ 85254",
-}
+KHP_CACHE_DIR = Path(os.environ.get("KHP_CACHE_DIR", os.path.expanduser("~/GitHub/khp-property-cache")))
+
+
+def _load_projects(cache_dir: Path) -> dict[str, str]:
+    """Read {KHP_CODE: "street, city, state zip"} from each KHP00X/khp00x.json
+    property record in the khp-property-cache repo (identity.street_address/
+    city/state/zip). Skips a property record that's missing or malformed
+    rather than failing the whole load."""
+    projects = {}
+    for json_path in sorted(cache_dir.glob("KHP0*/khp0*.json")):
+        if not re.fullmatch(r"khp\d{3}\.json", json_path.name):
+            continue  # e.g. khp006_exec_summary_content.json
+        try:
+            identity = json.loads(json_path.read_text()).get("identity") or {}
+        except (OSError, json.JSONDecodeError):
+            continue
+        code = identity.get("khp_code") or json_path.parent.name
+        street, city, state, zip_ = (identity.get(k) for k in ("street_address", "city", "state", "zip"))
+        if street and city and state and zip_:
+            projects[code] = f"{street}, {city}, {state} {zip_}"
+    return projects
+
+
+PROJECTS = _load_projects(KHP_CACHE_DIR)
+if not PROJECTS:
+    st.error(
+        f"No properties found in khp-property-cache ({KHP_CACHE_DIR}). "
+        "Check the checkout, or set KHP_CACHE_DIR to point at it."
+    )
+    st.stop()
 
 # ─────────────────────────────────────────────
 # MAIN FORM
