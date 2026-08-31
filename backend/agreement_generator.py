@@ -167,6 +167,15 @@ def _add_signature_tags(xml: str) -> str:
     Signatures section, mirroring the document's own signature blocks. Each
     anchor below is matched on its unique paraId so KAEDIX (left column) and
     Subcontractor (right column) get distinct fields.
+
+    The tag renders inline right after the "Signature:"/"Date:" label, so
+    DocuSeal anchors the field at the label's own line and extends the
+    field's height downward from there. Each row's ruled line sits exactly
+    34pt below that anchor — the same as the field's original height — so a
+    34pt-tall field lands right on top of the line instead of clearing it.
+    Shrinking the field to leave a visible margin (measured against the
+    rendered PDF's actual line/label coordinates, not guessed) keeps it
+    inside the blank space above the line, like every other row's value.
     """
 
     # KAEDIX — Signature
@@ -177,7 +186,7 @@ def _add_signature_tags(xml: str) -> str:
         '<w:p w14:paraId="0000010A" w14:textId="536EAB7E" w:rsidR="008777A2" w:rsidRDefault="00F13F85" w:rsidP="008777A2">'
         '<w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:pPr>'
         '<w:r><w:rPr><w:b/><w:bCs/></w:rPr><w:t>Signature:</w:t></w:r>'
-        + _tag_run('{{Signature_KAEDIX;role=KAEDIX;type=signature;width=180;height=34}}')
+        + _tag_run('{{Signature_KAEDIX;role=KAEDIX;type=signature;width=180;height=22}}')
         + '</w:p>',
     )
 
@@ -189,7 +198,7 @@ def _add_signature_tags(xml: str) -> str:
         '<w:p w14:paraId="0000010C" w14:textId="165B9C7D" w:rsidR="008777A2" w:rsidRDefault="00F13F85" w:rsidP="008777A2">'
         '<w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:pPr>'
         '<w:r><w:rPr><w:b/><w:bCs/></w:rPr><w:t>Signature:</w:t></w:r>'
-        + _tag_run('{{Signature_Sub;role=Subcontractor;type=signature;width=180;height=34}}')
+        + _tag_run('{{Signature_Sub;role=Subcontractor;type=signature;width=180;height=22}}')
         + '</w:p>',
     )
 
@@ -203,7 +212,7 @@ def _add_signature_tags(xml: str) -> str:
         '<w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:pPr>'
         '<w:r><w:rPr><w:b/><w:bCs/></w:rPr><w:t>Date</w:t></w:r>'
         '<w:r w:rsidR="00F13F85"><w:rPr><w:b/><w:bCs/></w:rPr><w:t>:</w:t></w:r>'
-        + _tag_run('{{Date_KAEDIX;role=KAEDIX;type=date;width=120;height=20}}')
+        + _tag_run('{{Date_KAEDIX;role=KAEDIX;type=date;width=120;height=16}}')
         + '</w:p>',
     )
 
@@ -217,7 +226,7 @@ def _add_signature_tags(xml: str) -> str:
         '<w:pPr><w:rPr><w:b/><w:bCs/></w:rPr></w:pPr>'
         '<w:r><w:rPr><w:b/><w:bCs/></w:rPr><w:t>Date</w:t></w:r>'
         '<w:r w:rsidR="00F13F85"><w:rPr><w:b/><w:bCs/></w:rPr><w:t>:</w:t></w:r>'
-        + _tag_run('{{Date_Sub;role=Subcontractor;type=date;width=120;height=20}}')
+        + _tag_run('{{Date_Sub;role=Subcontractor;type=date;width=120;height=16}}')
         + '</w:p>',
     )
 
