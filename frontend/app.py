@@ -216,15 +216,6 @@ msal_app = build_msal_app()
 if "token" not in st.session_state:
     st.session_state.token = None
 
-# LOCAL SCREENSHOT BYPASS — not for commit, dev-only auth stub
-if os.environ.get("SCREENSHOT_BYPASS_AUTH"):
-    st.session_state.token = {
-        "id_token_claims": {
-            "preferred_username": "seth.porter@kaedix.com",
-            "name": "Seth Porter",
-        }
-    }
-
 # -----------------------
 # HANDLE MICROSOFT REDIRECT
 # -----------------------
