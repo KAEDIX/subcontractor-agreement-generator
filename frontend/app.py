@@ -168,7 +168,7 @@ def _load_projects():
     """{khp_code: address} from the property cache, falling back to the pinned
     list (with a warning) when the checkout isn't present."""
     try:
-        properties = load_properties()
+        properties = load_properties(active_only=True)
     except KHPRegistryError as exc:
         st.warning(f"KHP property cache unavailable — using the pinned project list. ({exc})")
         return dict(_FALLBACK_PROJECTS)
