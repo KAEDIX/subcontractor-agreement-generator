@@ -14,6 +14,7 @@ PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from backend.agreement_generator import generate_agreement_pdf
+from backend.khp_registry import KHPRegistryError, load_properties
 
 BASE_DIR = Path(__file__).resolve().parent
 ICON_PATH = BASE_DIR / ".." / "template" / "kaedix_icon.png"
@@ -137,13 +138,48 @@ st.divider()
 # ─────────────────────────────────────────────
 # PROJECT REGISTRY
 # ─────────────────────────────────────────────
-PROJECTS = {
+# The khp-property-cache checkout is the source of truth for KHP codes and
+# addresses (KHP_CACHE_DIR, already set in subcontractor.service). The list
+# below is only a fallback for when that checkout is missing -- without it an
+# unreadable cache would leave the Project ID dropdown empty and wedge the
+# form. Adding a property belongs in the cache repo, not here.
+_FALLBACK_PROJECTS = {
     "KHP003": "8407 E Rancho Vista Dr, Scottsdale, AZ 85251",
     "KHP004": "4949 E Shaw Butte Dr, Scottsdale, AZ 85254",
     "KHP005": "10818 N 43rd St, Phoenix, AZ 85028",
     "KHP006": "3832 N 85th Pl, Scottsdale, AZ 85251",
     "KHP008": "6318 E Paradise Ln, Scottsdale, AZ 85254",
 }
+
+
+def _format_address(prop):
+    """'10818 N 43rd St, Phoenix, AZ 85028' -- the shape the agreement expects.
+    Tolerates a cache record with pieces missing rather than emitting stray
+    commas."""
+    street = (prop.get("street_address") or "").strip()
+    city = (prop.get("city") or "").strip()
+    region = " ".join(p for p in ((prop.get("state") or "").strip(),
+                                  (prop.get("zip") or "").strip()) if p)
+    return ", ".join(p for p in (street, city, region) if p)
+
+
+@st.cache_data
+def _load_projects():
+    """{khp_code: address} from the property cache, falling back to the pinned
+    list (with a warning) when the checkout isn't present."""
+    try:
+        properties = load_properties()
+    except KHPRegistryError as exc:
+        st.warning(f"KHP property cache unavailable — using the pinned project list. ({exc})")
+        return dict(_FALLBACK_PROJECTS)
+    projects = {p["khp_code"]: _format_address(p) for p in properties if _format_address(p)}
+    if not projects:
+        st.warning("KHP property cache held no usable records — using the pinned project list.")
+        return dict(_FALLBACK_PROJECTS)
+    return projects
+
+
+PROJECTS = _load_projects()
 
 # ─────────────────────────────────────────────
 # MAIN FORM
