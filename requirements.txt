@@ -2,3 +2,5 @@ streamlit
 msal
 python-dotenv
 requests
+pypdf
+psycopg2-binary

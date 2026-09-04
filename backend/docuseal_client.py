@@ -31,6 +31,7 @@ def create_submission(
     sub_phone: str,
     send_email: bool,
     send_sms: bool,
+    metadata: dict | None = None,
 ) -> dict:
     """
     Create a DocuSeal submission from the agreement PDF. Signature/date fields
@@ -58,6 +59,15 @@ def create_submission(
             "send_sms": send_sms,
         },
     ]
+
+    # Stamp filing metadata on EVERY submitter, identically. DocuSeal carries
+    # metadata per submitter, and the autofiler resolves a completed document
+    # from whichever party record it reads -- so a stamp on only one of the two
+    # would resolve for one signer and not the other. Nothing here reaches the
+    # signer: not on the document, not in the filename, not in the email.
+    if metadata:
+        for submitter in submitters:
+            submitter["metadata"] = dict(metadata)
 
     payload = {
         "name": filename,

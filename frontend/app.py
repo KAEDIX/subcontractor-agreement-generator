@@ -19,6 +19,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from backend.agreement_generator import generate_agreement_pdf
 from backend.docuseal_client import create_submission
 from backend.khp_registry import load_properties, KHPRegistryError
+from backend.trade_registry import load_trades, TradeRegistryError
 
 
 def _normalize_phone(raw: str) -> str | None:
@@ -272,13 +273,15 @@ if not email.endswith("@kaedix.com"):
 # ─────────────────────────────────────────────
 # PROJECT REGISTRY
 # ─────────────────────────────────────────────
-_INACTIVE_STATUSES = {"dead", "sold", "closed"}
-
 try:
+    # is_active reads both status fields the cache uses. Filtering on the
+    # top-level "status" alone lets KHP007 through -- its CANCELED marker lives
+    # at deal_economics.deal_status, and its record says it must not appear in
+    # any forward model.
     PROJECTS = {
         p["khp_code"]: f'{p["street_address"]}, {p["city"]}, {p["state"]} {p["zip"]}'
         for p in load_properties()
-        if (p["status"] or "").lower() not in _INACTIVE_STATUSES
+        if p["is_active"]
     }
 except KHPRegistryError as e:
     st.error(f"{e}. Clone it: git clone https://github.com/KAEDIX/khp-property-cache.git")
@@ -318,6 +321,29 @@ with st.container(border=True):
         project_address = st.text_input("Project Address", key="project_address")
         start_date      = st.text_input("Scheduled Start Date", placeholder="MM/DD/YYYY")
 
+@st.cache_data
+def _trades_cached():
+    return load_trades()
+
+
+def _trade_picker():
+    """Trade (CSI) -> the selected {csi_code, name}. The bare CSI number is the
+    whole cost code; no L/M suffix. Feeds the DocuSeal stamp only -- it is not
+    printed on the agreement."""
+    try:
+        trades = _trades_cached()
+    except TradeRegistryError as exc:
+        st.error(f"Cost codes unavailable: {exc}")
+        st.stop()
+    idx = st.selectbox(
+        "Trade (CSI)",
+        options=range(len(trades)),
+        format_func=lambda i: f"{trades[i]['csi_code']}  —  {trades[i]['name']}",
+        key="trade_csi",
+    )
+    return {"csi_code": trades[idx]["csi_code"], "name": trades[idx]["name"]}
+
+
 with st.form("agreement_form"):
 
     # ── Subcontractor Information ─────────────────────────────────────────
@@ -336,6 +362,7 @@ with st.form("agreement_form"):
     # ── Contract Terms ────────────────────────────────────────────────────
     st.markdown("#### Contract Terms")
     total_amount = st.text_input("Total Subcontract Amount", placeholder="e.g. 15000")
+    selected_trade = _trade_picker()
 
     st.divider()
 
@@ -481,6 +508,17 @@ if send_clicked or download_clicked:
                     sub_phone=normalized_phone,
                     send_email=send_via_email,
                     send_sms=send_via_text,
+                    # What the autofiler otherwise has to email someone to ask.
+                    # kdx_owner is the logged-in creator, so the question lands
+                    # on them rather than falling back to a default recipient.
+                    # The vendor is the subcontractor; the CSI selection carries
+                    # both the trade name and the cost code.
+                    metadata={
+                        "kdx_owner": email,
+                        "kdx_vendor": company_name or subcontractor_name,
+                        "kdx_trade": (selected_trade or {}).get("name", ""),
+                        "kdx_cost_code": (selected_trade or {}).get("csi_code", ""),
+                    },
                 )
                 st.success(f"Sent for signature — DocuSeal submission ID {result['id']}")
             except Exception as e:
