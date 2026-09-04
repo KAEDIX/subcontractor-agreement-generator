@@ -38,6 +38,10 @@ ICON_PATH = BASE_DIR / ".." / "template" / "kaedix_icon.png"
 WORDMARK_PATH = BASE_DIR / ".." / "template" / "kdx_combo_white.png"
 
 
+def _valid_email(raw: str) -> bool:
+    return bool(re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", (raw or "").strip()))
+
+
 def _img_data_uri(path: Path) -> str:
     try:
         return "data:image/png;base64," + base64.b64encode(path.read_bytes()).decode()
@@ -367,13 +371,23 @@ with st.form("agreement_form"):
     st.divider()
 
     # ── KAEDIX Signatory ──────────────────────────────────────────────────
-    # The signer is whoever is logged in (MSAL claims), not a free-text field —
-    # only the title varies per document.
+    # Defaults to whoever is logged in, but is editable: the person preparing
+    # the agreement is often not the person who signs it. Whatever goes here
+    # names the signer on the document AND receives the first signature
+    # request -- it does NOT change who the autofiler comes back to with
+    # filing questions, which stays the logged-in creator (see kdx_owner).
     st.markdown("#### KAEDIX Signatory")
-    st.markdown(f"Signing as **{name}** ({email})")
-    signatory_name  = name
-    signatory_email = email
+    col7, col8 = st.columns(2)
+    with col7:
+        signatory_name = st.text_input("Signatory Name", value=name)
+    with col8:
+        signatory_email = st.text_input("Signatory Email", value=email)
     signatory_title = st.text_input("Signatory Title", placeholder="e.g. Managing Member")
+    if (signatory_email or "").strip().lower() != (email or "").strip().lower():
+        st.caption(
+            f"⚠️ {signatory_name or 'This person'} signs first and receives the "
+            f"signature request. You ({email}) stay the owner of record for filing."
+        )
 
     st.divider()
 
@@ -442,6 +456,11 @@ if send_clicked or download_clicked:
                 "Check Send via email or Send via text before sending — "
                 "or use the Download PDF link below to just get the file."
             )
+        if not _valid_email(signatory_email):
+            send_errors.append(
+                "KAEDIX Signatory Email must be a valid address — it receives "
+                "the first signature request."
+            )
         if send_via_email and not sub_email:
             send_errors.append("Subcontractor Email is required to send via email.")
         if send_via_text and not normalized_phone:
@@ -501,8 +520,8 @@ if send_clicked or download_clicked:
                 result = create_submission(
                     pdf_bytes=pdf_bytes,
                     filename=filename,
-                    kaedix_name=name,
-                    kaedix_email=email,
+                    kaedix_name=signatory_name,
+                    kaedix_email=signatory_email,
                     sub_name=company_name or subcontractor_name,
                     sub_email=sub_email or None,
                     sub_phone=normalized_phone,
