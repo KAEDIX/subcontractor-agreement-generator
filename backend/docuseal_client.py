@@ -38,9 +38,14 @@ def create_submission(
     are placed via {{...}} text tags already embedded in the PDF, so no
     `fields` array is passed here.
 
-    Submitters sign simultaneously (order=random), matching how KAEDIX sends
-    today. The KAEDIX signer is whoever is logged into the app (their MSAL
-    identity) and always gets an email invite, never SMS.
+    Submitters sign IN ORDER (order=preserved): the KAEDIX representative
+    first, the subcontractor only once KAEDIX has signed. DocuSeal holds the
+    second invite until the first is complete, so the subcontractor is not
+    contacted until the agreement is countersigned. The submitters list below
+    IS that order -- reordering it reorders the signing.
+
+    The KAEDIX signer is whoever is logged into the app (their MSAL identity)
+    and always gets an email invite, never SMS.
     """
     submitters = [
         {
@@ -71,7 +76,7 @@ def create_submission(
 
     payload = {
         "name": filename,
-        "order": "random",
+        "order": "preserved",
         "documents": [
             {
                 "name": filename,
