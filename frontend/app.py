@@ -378,10 +378,7 @@ def _trade_picker():
     return {"csi_code": trades[idx]["csi_code"], "name": trades[idx]["name"]}
 
 
-# Outside the form: choosing "Enter manually" must rerun to reveal its fields.
-selected_trade = _trade_picker()
-
-with st.form("agreement_form"):
+with st.container(border=True):
 
     # ── Subcontractor Information ─────────────────────────────────────────
     st.markdown("#### Subcontractor Information")
@@ -399,6 +396,7 @@ with st.form("agreement_form"):
     # ── Contract Terms ────────────────────────────────────────────────────
     st.markdown("#### Contract Terms")
     total_amount = st.text_input("Total Subcontract Amount", placeholder="e.g. 15000")
+    selected_trade = _trade_picker()
 
     st.divider()
 
@@ -441,12 +439,13 @@ with st.form("agreement_form"):
     with col8:
         send_via_text = st.checkbox("Send via text")
 
-    send_clicked = st.form_submit_button(
-        "Send PDF for Signature", use_container_width=True, type="primary"
+    send_clicked = st.button(
+        "Send PDF for Signature", use_container_width=True, type="primary",
+        key="send_submit"
     )
     dl_col = st.columns([3, 1])[1]
     with dl_col:
-        download_clicked = st.form_submit_button(
+        download_clicked = st.button(
             "Download PDF", use_container_width=True
         )
 
