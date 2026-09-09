@@ -350,7 +350,11 @@ def _normalize_csi(raw: str) -> str:
 def _trade_picker():
     """Trade (CSI) -> the selected {csi_code, name}. The bare CSI number is the
     whole cost code; no L/M suffix. Feeds the DocuSeal stamp only -- it is not
-    printed on the agreement."""
+    printed on the agreement.
+
+    Renders OUTSIDE the st.form so choosing "Enter manually" reruns
+    immediately and the two fields appear. Inside a form the selectbox would
+    not rerun on change and they would stay hidden."""
     try:
         trades = _trades_cached()
     except TradeRegistryError as exc:
@@ -364,22 +368,18 @@ def _trade_picker():
         key="trade_csi",
     )
 
-    # The manual fields sit in a collapsed expander rather than appearing the
-    # moment the sentinel is picked. Widgets inside an st.form do not rerun the
-    # script on change, so a conditional reveal would not show up until some
-    # other interaction happened to rerun the page -- which reads as broken.
-    # One click to open always works.
-    with st.expander("Trade not listed? Enter it manually"):
+    if idx == len(trades):
         manual_code = st.text_input("CSI code", key="trade_manual_code",
                                     placeholder="e.g. 03 00 00")
         manual_name = st.text_input("Trade", key="trade_manual_name",
                                     placeholder="e.g. Concrete")
-
-    if idx == len(trades):
         return {"csi_code": _normalize_csi(manual_code),
                 "name": (manual_name or "").strip()}
     return {"csi_code": trades[idx]["csi_code"], "name": trades[idx]["name"]}
 
+
+# Outside the form: choosing "Enter manually" must rerun to reveal its fields.
+selected_trade = _trade_picker()
 
 with st.form("agreement_form"):
 
@@ -399,7 +399,6 @@ with st.form("agreement_form"):
     # ── Contract Terms ────────────────────────────────────────────────────
     st.markdown("#### Contract Terms")
     total_amount = st.text_input("Total Subcontract Amount", placeholder="e.g. 15000")
-    selected_trade = _trade_picker()
 
     st.divider()
 
