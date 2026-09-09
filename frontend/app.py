@@ -325,9 +325,26 @@ with st.container(border=True):
         project_address = st.text_input("Project Address", key="project_address")
         start_date      = st.text_input("Scheduled Start Date", placeholder="MM/DD/YYYY")
 
-@st.cache_data
+MANUAL_TRADE = "\u270f\ufe0f  Enter manually\u2026"
+
+
+# ttl so a trade added to the registry appears without restarting the app.
+@st.cache_data(ttl=300, show_spinner=False)
 def _trades_cached():
     return load_trades()
+
+
+def _normalize_csi(raw: str) -> str:
+    """"093000", "09-30-00", "09.30.00" -> "09 30 00".
+
+    Six digits is the only shape CSI uses, so that is the only shape we
+    reformat. Anything else is passed through stripped rather than mangled: a
+    deliberate oddity should reach the autofiler intact and be judged there.
+    """
+    digits = re.sub(r"\D", "", raw or "")
+    if len(digits) == 6:
+        return f"{digits[0:2]} {digits[2:4]} {digits[4:6]}"
+    return (raw or "").strip()
 
 
 def _trade_picker():
@@ -341,10 +358,26 @@ def _trade_picker():
         st.stop()
     idx = st.selectbox(
         "Trade (CSI)",
-        options=range(len(trades)),
-        format_func=lambda i: f"{trades[i]['csi_code']}  —  {trades[i]['name']}",
+        options=range(len(trades) + 1),
+        format_func=lambda i: (MANUAL_TRADE if i == len(trades)
+                               else f"{trades[i]['csi_code']}  —  {trades[i]['name']}"),
         key="trade_csi",
     )
+
+    # The manual fields sit in a collapsed expander rather than appearing the
+    # moment the sentinel is picked. Widgets inside an st.form do not rerun the
+    # script on change, so a conditional reveal would not show up until some
+    # other interaction happened to rerun the page -- which reads as broken.
+    # One click to open always works.
+    with st.expander("Trade not listed? Enter it manually"):
+        manual_code = st.text_input("CSI code", key="trade_manual_code",
+                                    placeholder="e.g. 03 00 00")
+        manual_name = st.text_input("Trade", key="trade_manual_name",
+                                    placeholder="e.g. Concrete")
+
+    if idx == len(trades):
+        return {"csi_code": _normalize_csi(manual_code),
+                "name": (manual_name or "").strip()}
     return {"csi_code": trades[idx]["csi_code"], "name": trades[idx]["name"]}
 
 
@@ -451,6 +484,13 @@ if send_clicked or download_clicked:
 
     if send_clicked:
         send_errors = []
+        _t = selected_trade or {}
+        if not (_t.get("csi_code") or "").strip() or not (_t.get("name") or "").strip():
+            send_errors.append(
+                "Trade (CSI) is required. Pick one from the list, or choose "
+                f"\u201c{MANUAL_TRADE.strip()}\u201d and fill in both fields under "
+                "\u201cTrade not listed?\u201d."
+            )
         if not send_via_email and not send_via_text:
             send_errors.append(
                 "Check Send via email or Send via text before sending — "
